@@ -53,7 +53,7 @@ And many-many more...
 ## License
 
 JBreakpoint application is distributed under GNU General Public License, Version 3 
-For the terms of this license, see licenses/gpl_v3.md or <http://www.gnu.org/licenses/>.
+For the terms of this license, see <a href="LICENCE.md">LICENCE.md</a> or <http://www.gnu.org/licenses/>.
 
 Copyright © 2014 Vladimir Potapev
 
