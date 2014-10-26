@@ -1,7 +1,6 @@
 (ns jbreakpoint.core
-  (:gen-class)
-  (:use [jbreakpoint.cli
-         jbreakpoint.screen]))
+  (:use [jbreakpoint.cli :as cli]
+        [jbreakpoint.screen :as screen]))
 
 (defn -main
   "Main function."
@@ -10,4 +9,4 @@
 
   (def context (atom {}))
 
-  (jbreakpoint.screen/create-screen context jbreakpoint.cli/input-loop))
+  (screen/create-screen context cli/input-loop))
