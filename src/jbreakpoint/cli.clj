@@ -26,11 +26,18 @@
       (if (.resizePending screen)
         (.refresh screen)))))
 
+; clean input buffer
 (defn clean-buf [buf]
   (swap! buf #(empty %)))
 
+; return string which is transformed from a sequence of com.googlecode.lanterna.input.Key
 (defn get-buf-as-string [buf]
   (string/join (map #(.getCharacter %) @buf)))
 
+; get next cmd ended by EOL
 (defn get-next-cmd [strbuf]
-  (fnext (re-find #"(\S.+)\n" strbuf)))
+  (fnext (re-find #"(\S+)\n" strbuf)))
+
+; return strbuf without first cmd (ended by EOL)
+(defn pop-next-cmd [strbuf]
+  (first (nnext (re-find #"(?s)(\S+?)\n(.*)" strbuf))))
