@@ -41,4 +41,4 @@
           (apply (second (first (filter #(re-find (key %) nextcmd) commands))) []))
   :cmd-list)
 
-; test autocomplete feature - suggest for a typing command
+; TODO: test autocomplete feature - suggest for a typing command

@@ -28,25 +28,14 @@
 
 (defn get-wnd-layout [wnd-id parent-width parent-height]
   (let [layout (
-                 {:type :wnd :id :screen-wnd
-                    :left 0 :top 0 :width parent-width :height parent-height}
-;                 {:type :wnd :id :wnd-sources
-;                    :left 0 :top 0 :right width :bottom #(dec (get-layout :splitter1 :top))}
-;                 {:type :hsplitter :id :splitter1
-;                    :left 0 :top #(* (/ height 4) 3) :right width :bottom #(* (/ height 4) 3)}
-;                 {:type :wnd :id :wnd-composite1
-;                    :left 0 :top #(+ (get-wnd-param :splitter1 :top) 1) :right width :bottom height}
-                 {:type :wnd :id :wnd-console
-                    :left (get-wnd-layout :screen-wnd :left)
-                    :top (get-wnd-layout :screen-wnd :top)
-                    :width (get-wnd-layout :screen-wnd :right)
-                    :height (get-wnd-layout :screen-wnd :bottom)}
-;                 {:type :vsplitter :id :splitter2
-;                    :left #(/ width 2) :top 0 :right width :bottom #(* (/ height 4) 1)}
-;                 {:type :menu :id :wnd-menu1
-;                    :left 0 :top (dec width)}
+                 {:id :main-screen-wnd
+                  :left 0 :top 0 :width parent-width :height parent-height
+                  :children (
+                              {:id :wnd-console
+                               :left 0 :top 0 :width ((get-wnd-layout :main-screen-wnd) :right) :height ((get-wnd-layout :main-screen-wnd) :bottom)}
+                              )}
    )]
-    layout))
+    (layout wnd-id)))
 
 (defn draw-line-vert [screen x1 y1 len]
   (for [n (range 0 (- len 1))]
