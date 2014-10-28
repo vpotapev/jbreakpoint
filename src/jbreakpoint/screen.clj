@@ -17,6 +17,7 @@
 (defn create-screen [context input-loop]
   (do
     (def screen (TerminalFacade/createScreen (TerminalFacade/createUnixTerminal)))
+    (binding [*screen* screen])
     (def gui-screen (TerminalFacade/createGUIScreen screen))
 ;    (def btn (Button. "Exit" (create-button-action #(.close win))))
 ;    (.setAlignment btn com.googlecode.lanterna.gui.Component$Alignment/RIGHT_CENTER)
@@ -26,15 +27,24 @@
 
 ;TODO: make layout: console window into main window. It needed to simulate jdb console
 
-(defn get-wnd-layout [wnd-id parent-width parent-height]
-  (let [layout (
-                 {:id :main-screen-wnd
-                  :left 0 :top 0 :width parent-width :height parent-height
-                  :children (
-                              {:id :wnd-console
-                               :left 0 :top 0 :width ((get-wnd-layout :main-screen-wnd) :right) :height ((get-wnd-layout :main-screen-wnd) :bottom)}
-                              )}
-   )]
+(binding [*screen-layout*
+          '(
+             {:id :main-screen-wnd
+              :left 0
+              :top 0
+              :width (.getColumns (.getTerminalSize *screen*))
+              :height (.getRows (.getTerminalSize *screen*))
+              :children '(
+                           {:id :wnd-console
+                            :left 0
+                            :top 0
+                            :width ((get-wnd-layout :main-screen-wnd screen) :width)
+                            :height ((get-wnd-layout :main-screen-wnd screen) :height)}
+                           )}
+             )])
+
+(defn get-wnd-layout [wnd-id screen]
+  (let [layout *screen-layout*]
     (layout wnd-id)))
 
 (defn draw-line-vert [screen x1 y1 len]
