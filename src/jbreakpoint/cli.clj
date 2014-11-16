@@ -11,14 +11,11 @@
            (com.googlecode.lanterna.terminal.text UnixTerminal)
            (com.googlecode.lanterna.input Key)))
 
-(def event-queue (atom []))
-
-(defn buffer-append [in-key]
-  )
+(defn buffer-append [context in-key]
+  (assoc context :buffer (conj (context :buffer) in-key)))
 
 (defn input-loop [screen context]
-  (def exit-flag (atom false))
-  (while @exit-flag
+  (while (@context :exit-flag)
     (do
       (def in-key (.readInput screen))
       (if (not= in-key nil)
