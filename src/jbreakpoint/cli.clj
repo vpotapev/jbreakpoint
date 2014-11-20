@@ -15,11 +15,17 @@
   (assoc context :buffer (conj (context :buffer) in-key)))
 
 (defn input-loop [screen context]
-  (while (@context :exit-flag)
+  (while (complement (@context :exit-flag))
     (do
       (def in-key (.readInput screen))
       (if (not= in-key nil)
-        (swap! context buffer-append in-key))
+        (do
+          (swap! context buffer-append in-key)
+          (.putCharacter (.getTerminal screen) (.getCharacter in-key))
+          (if (=
+                \q
+                (.getCharacter in-key))
+            (swap! context #(assoc %1 :exit-flag %2) true))))
       (if (.resizePending screen)
         (.refresh screen)))))
 
