@@ -12,20 +12,18 @@
            (com.googlecode.lanterna.input Key)))
 
 (defn buffer-append [context in-key]
-  (assoc context :buffer (conj (context :buffer) in-key)))
+  (swap! context conj {:buffer (conj (@context :buffer) in-key)}))
 
 (defn input-loop [screen context]
-  (while (complement (@context :exit-flag))
+  (while (not (@context :exit-flag))
     (do
       (def in-key (.readInput screen))
       (if (not= in-key nil)
         (do
-          (swap! context buffer-append in-key)
+          (buffer-append context in-key)
           (.putCharacter (.getTerminal screen) (.getCharacter in-key))
-          (if (=
-                \q
-                (.getCharacter in-key))
-            (swap! context #(assoc %1 :exit-flag %2) true))))
+          (if (= \q (.getCharacter in-key))
+            (swap! context conj {:exit-flag true}))))
       (if (.resizePending screen)
         (.refresh screen)))))
 
