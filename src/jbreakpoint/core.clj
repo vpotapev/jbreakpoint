@@ -3,7 +3,9 @@
         [jbreakpoint.screen :as screen]))
 
 (def context (atom {
-                     :buffer [] ; buffer for incoming keys (com.googlecode.lanterna.input.Key objects)
+                     :buffer [] ; buffer for incoming chars
+                     :buffer-pos 0 ; cursor pos in buffer. Can be changed by cursor keys
+                     :history [] ; buffer for storing history (list of strings)
                      :exit-flag false ; exit flag
                      }))
 

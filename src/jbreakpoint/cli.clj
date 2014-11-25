@@ -14,17 +14,36 @@
 (defn buffer-append [context in-key]
   (swap! context conj {:buffer (conj (@context :buffer) in-key)}))
 
+(defn history-append [context str]
+  (swap! context conj {:history (conj (@context :history) str)}))
+
+(defn move-cursor-left [context]
+  nil)
+
+(defn move-cursor-right [context]
+  nil)
+
+(defn process-in-key [context in-key]
+  (case in-key
+    Key$Kind/ArrowLeft (do (move-cursor-left context) true)
+    Key$Kind/ArrowRight (do (move-cursor-left context) (true))
+    false))
+
 (defn input-loop [screen context]
   (while (not (@context :exit-flag))
     (do
       (def in-key (.readInput screen))
       (when (not= in-key nil)
-        (buffer-append context in-key)
-        (.putCharacter (.getTerminal screen) (.getCharacter in-key))
-        (if (= \q (.getCharacter in-key))
+        (process-in-key context in-key)
+        (def ch (.getCharacter in-key))
+        (buffer-append context ch)
+        (.putCharacter (.getTerminal screen) ch)
+        (if (= \q ch)
           (swap! context conj {:exit-flag true})))
       (if (.resizePending screen)
-        (.refresh screen)))))
+        (do
+          (.updateScreenSize screen)
+          (.refresh screen))))))
 
 ; clean input buffer
 (defn clean-buf [buf]

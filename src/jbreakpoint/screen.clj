@@ -10,14 +10,16 @@
            (com.googlecode.lanterna.terminal TerminalSize)
            (com.googlecode.lanterna.terminal.text UnixTerminal)))
 
-(defn create-button-action
-  [f & args]
-  (proxy [Action] []
-    (doAction [] (apply f args))))
+;(defn create-button-action
+;  [f & args]
+;  (proxy [Action] []
+;    (doAction [] (apply f args))))
 
 (defn create-screen [context input-loop]
-  (def screen (TerminalFacade/createScreen (TerminalFacade/createUnixTerminal)))
+  (def term (TerminalFacade/createUnixTerminal))
+  (def screen (TerminalFacade/createScreen term))
   (def gui-screen (TerminalFacade/createGUIScreen screen))
+  (.setCursorVisible term true)
 ;    (def btn (Button. "Exit" (create-button-action #(.close win))))
 ;    (.setAlignment btn com.googlecode.lanterna.gui.Component$Alignment/RIGHT_CENTER)
   (.startScreen screen)
