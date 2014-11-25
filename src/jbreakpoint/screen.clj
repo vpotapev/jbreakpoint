@@ -16,14 +16,13 @@
     (doAction [] (apply f args))))
 
 (defn create-screen [context input-loop]
-  (do
-    (def screen (TerminalFacade/createScreen (TerminalFacade/createUnixTerminal)))
-    (def gui-screen (TerminalFacade/createGUIScreen screen))
+  (def screen (TerminalFacade/createScreen (TerminalFacade/createUnixTerminal)))
+  (def gui-screen (TerminalFacade/createGUIScreen screen))
 ;    (def btn (Button. "Exit" (create-button-action #(.close win))))
 ;    (.setAlignment btn com.googlecode.lanterna.gui.Component$Alignment/RIGHT_CENTER)
-    (.startScreen screen)
-    (input-loop screen context)
-    (.stopScreen screen)))
+  (.startScreen screen)
+  (input-loop screen context)
+  (.stopScreen screen))
 
 (defn get-screen-size [screen-class]
   {

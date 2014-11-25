@@ -18,12 +18,11 @@
   (while (not (@context :exit-flag))
     (do
       (def in-key (.readInput screen))
-      (if (not= in-key nil)
-        (do
-          (buffer-append context in-key)
-          (.putCharacter (.getTerminal screen) (.getCharacter in-key))
-          (if (= \q (.getCharacter in-key))
-            (swap! context conj {:exit-flag true}))))
+      (when (not= in-key nil)
+        (buffer-append context in-key)
+        (.putCharacter (.getTerminal screen) (.getCharacter in-key))
+        (if (= \q (.getCharacter in-key))
+          (swap! context conj {:exit-flag true})))
       (if (.resizePending screen)
         (.refresh screen)))))
 
