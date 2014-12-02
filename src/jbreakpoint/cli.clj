@@ -1,7 +1,8 @@
 (ns
   ^{:author rhub}
   jbreakpoint.cli
-  (:require [clojure.string :as string])
+  (:require [clojure.string :as string]
+            [taoensso.timbre :as timbre])
   (:import (java.nio.charset Charset)
            (com.googlecode.lanterna TerminalFacade)
            (com.googlecode.lanterna.gui Action GUIScreen Window Component)
@@ -11,6 +12,7 @@
            (com.googlecode.lanterna.terminal.text UnixTerminal)
            (com.googlecode.lanterna.input Key)
            (com.googlecode.lanterna.screen ScreenCharacterStyle)))
+(timbre/refer-timbre)
 
 (defn print-buffer-line [screen context]
   (let [buf (@context :buffer)
@@ -47,22 +49,23 @@
 
 (defn process-in-key [context in-key]
   (case (.getKind in-key)
-    Key$Kind/ArrowLeft (do (move-cursor-left context) true)
-    Key$Kind/ArrowRight (do (move-cursor-right context) true)
+    com.googlecode.lanterna.input.Key$Kind/ArrowLeft (do (move-cursor-left context) true)
+    com.googlecode.lanterna.input.Key$Kind/ArrowRight (do (move-cursor-right context) true)
     false))
 
 (defn input-loop [screen context]
   (while (not (@context :exit-flag))
     (def in-key (.readInput screen))
       (when (not= in-key nil)
-        (case (.getKind in-key)
-          Key$Kind/NormalKey ((def ch (.getCharacter in-key))
-                               (buffer-insert context ch)
-                               (.clear screen)
-                               (print-buffer-line screen context)
-                               (.refresh screen)
-                               (if (= \q ch)
-                                 (swap! context conj {:exit-flag true})))
+        (def key-kind (.getKind in-key))
+        (condp = key-kind
+          com.googlecode.lanterna.input.Key$Kind/NormalKey (do (def ch (.getCharacter in-key))
+                                                             (buffer-insert context ch)
+                                                             (.clear screen)
+                                                             (print-buffer-line screen context)
+                                                             (.refresh screen)
+                                                             (if (= ch \q)
+                                                               (swap! context conj {:exit-flag true})))
           (process-in-key context in-key)))
       (if (.resizePending screen)
         (do
