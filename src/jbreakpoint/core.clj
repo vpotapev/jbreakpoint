@@ -1,6 +1,8 @@
 (ns jbreakpoint.core
   (:use [jbreakpoint.cli :as cli]
-        [jbreakpoint.screen :as screen]))
+        [jbreakpoint.screen :as screen]
+        [jbreakpoint.core])
+  (:gen-class))
 
 (def context (atom {
                      :buffer [] ; buffer for incoming chars

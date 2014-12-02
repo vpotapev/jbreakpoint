@@ -27,14 +27,6 @@
     (rem cursor-pos term-width)
     (+ (quot cursor-pos term-width) output-y-pos))))
 
-(defn buffer-insert [context ch]
-  (let [buf (@context :buffer)
-        cursor-pos (@context :buffer-pos)
-        before-part (subvec buf 0 cursor-pos)
-        after-part (subvec buf cursor-pos)
-        new-buf (concat before-part [ch] after-part)]
-    (swap! context conj {:buffer (into [] new-buf)})))
-
 (defn history-append [context str]
   (swap! context conj {:history (conj (@context :history) str)}))
 
@@ -44,29 +36,38 @@
 (defn move-cursor-right [context]
   (swap! context conj {:buffer-pos (inc (@context :buffer-pos))}))
 
+(defn buffer-insert [context ch]
+  (let [buf (@context :buffer)
+        cursor-pos (@context :buffer-pos)
+        before-part (subvec buf 0 cursor-pos)
+        after-part (subvec buf cursor-pos)
+        new-buf (concat before-part [ch] after-part)]
+    (swap! context conj {:buffer (into [] new-buf)})
+    (move-cursor-right context)))
+
 (defn process-in-key [context in-key]
-  (case in-key
+  (case (.getKind in-key)
     Key$Kind/ArrowLeft (do (move-cursor-left context) true)
-    Key$Kind/ArrowRight (do (move-cursor-left context) true)
+    Key$Kind/ArrowRight (do (move-cursor-right context) true)
     false))
 
 (defn input-loop [screen context]
   (while (not (@context :exit-flag))
-    (do
-      (def in-key (.readInput screen))
+    (def in-key (.readInput screen))
       (when (not= in-key nil)
-        (process-in-key context in-key)
-        (def ch (.getCharacter in-key))
-        (buffer-insert context ch)
-        (.clear screen)
-        (print-buffer-line screen context)
-        (.refresh screen)
-        (if (= \q ch)
-          (swap! context conj {:exit-flag true})))
+        (case (.getKind in-key)
+          Key$Kind/NormalKey ((def ch (.getCharacter in-key))
+                               (buffer-insert context ch)
+                               (.clear screen)
+                               (print-buffer-line screen context)
+                               (.refresh screen)
+                               (if (= \q ch)
+                                 (swap! context conj {:exit-flag true})))
+          (process-in-key context in-key)))
       (if (.resizePending screen)
         (do
           (.updateScreenSize screen)
-          (.refresh screen))))))
+          (.refresh screen)))))
 
 ; clean input buffer
 (defn clean-buf [buf]
