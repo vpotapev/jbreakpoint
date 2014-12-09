@@ -33,12 +33,21 @@
   (swap! context conj {:history (conj (@context :history) str)}))
 
 (defn move-cursor-left [context]
-  (swap! context conj {:buffer-pos (dec (@context :buffer-pos))}))
+  (trace "move-cursor-left called")
+  (let [cursor-pos (@context :buffer-pos)]
+    (if (> cursor-pos 0)
+      (swap! context conj {:buffer-pos (dec cursor-pos)}))))
 
 (defn move-cursor-right [context]
-  (swap! context conj {:buffer-pos (inc (@context :buffer-pos))}))
+  (trace "move-cursor-right called")
+  (let [buf (@context :buffer)
+        buf-len (count buf)
+        cursor-pos (@context :buffer-pos)]
+    (if (< cursor-pos buf-len)
+      (swap! context conj {:buffer-pos (inc cursor-pos)}))))
 
 (defn buffer-insert [context ch]
+  (trace "buffer-insert called")
   (let [buf (@context :buffer)
         cursor-pos (@context :buffer-pos)
         before-part (subvec buf 0 cursor-pos)
@@ -48,29 +57,38 @@
     (move-cursor-right context)))
 
 (defn process-in-key [context in-key]
-  (case (.getKind in-key)
+  (trace "process-in-key called")
+  (condp = (.getKind in-key)
     com.googlecode.lanterna.input.Key$Kind/ArrowLeft (do (move-cursor-left context) true)
     com.googlecode.lanterna.input.Key$Kind/ArrowRight (do (move-cursor-right context) true)
     false))
 
 (defn input-loop [screen context]
+  (trace "input-loop called")
   (while (not (@context :exit-flag))
     (def in-key (.readInput screen))
-      (when (not= in-key nil)
-        (def key-kind (.getKind in-key))
-        (condp = key-kind
-          com.googlecode.lanterna.input.Key$Kind/NormalKey (do (def ch (.getCharacter in-key))
-                                                             (buffer-insert context ch)
-                                                             (.clear screen)
-                                                             (print-buffer-line screen context)
-                                                             (.refresh screen)
-                                                             (if (= ch \q)
-                                                               (swap! context conj {:exit-flag true})))
-          (process-in-key context in-key)))
-      (if (.resizePending screen)
-        (do
-          (.updateScreenSize screen)
-          (.refresh screen)))))
+    (when (not= in-key nil)
+      (trace "in-key: " in-key)
+      (def key-kind (.getKind in-key))
+      (condp = key-kind
+        com.googlecode.lanterna.input.Key$Kind/NormalKey (do (def ch (.getCharacter in-key))
+                                                           (buffer-insert context ch)
+                                                           (.clear screen)
+                                                           (print-buffer-line screen context)
+                                                           (.refresh screen)
+                                                           (if (= ch \q)
+                                                             (swap! context conj {:exit-flag true})))
+        (if (process-in-key context in-key)
+          (do
+            (.clear screen)
+            (print-buffer-line screen context)
+            (.refresh screen))))
+      (trace "context: " @context))
+    (if (.resizePending screen)
+      (do
+        (.updateScreenSize screen)
+        (.refresh screen)))
+    ))
 
 ; clean input buffer
 (defn clean-buf [buf]
