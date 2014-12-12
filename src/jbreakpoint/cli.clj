@@ -63,6 +63,17 @@
     (swap! context conj {:buffer (into [] new-buf)})
     (move-cursor-right context)))
 
+(defn delete-before-cursor [context]
+  (trace "delete-before-cursor called")
+  (let [buf (@context :buffer)
+        cursor-pos (@context :buffer-pos)]
+    (if (and (> (count buf) 0) (> cursor-pos 0))
+      (let [before-part (subvec buf 0 (- cursor-pos 1))
+            after-part (subvec buf cursor-pos)
+            new-buf (concat before-part after-part)]
+        (swap! context conj {:buffer (into [] new-buf)})
+        (move-cursor-left context)))))
+
 (defn process-in-key [context in-key]
   (trace "process-in-key called")
   (condp = (.getKind in-key) ; TODO: can be replaced by core.match (one switch for all cases) as part of input loop
@@ -73,6 +84,7 @@
                                                          (swap! context conj {:exit-flag true})) false)
     com.googlecode.lanterna.input.Key$Kind/ArrowLeft (do (move-cursor-left context) true)
     com.googlecode.lanterna.input.Key$Kind/ArrowRight (do (move-cursor-right context) true)
+    com.googlecode.lanterna.input.Key$Kind/Backspace (do (delete-before-cursor context) true)
     false))
 
 (defn input-loop [screen context]
