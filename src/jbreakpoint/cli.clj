@@ -53,6 +53,16 @@
     (if (< cursor-pos buf-len)
       (swap! context conj {:buffer-pos (inc cursor-pos)}))))
 
+(defn move-cursor-on-bof [context]
+  (trace "move-cursor-on-bof called")
+  (swap! context conj {:buffer-pos 0}))
+
+(defn move-cursor-on-eof [context]
+  (trace "move-cursor-on-eof called")
+  (let [buf (@context :buffer)
+        buf-len (count buf)]
+    (swap! context conj {:buffer-pos buf-len})))
+
 (defn buffer-insert [context ch]
   (trace "buffer-insert called")
   (let [buf (@context :buffer)
@@ -96,6 +106,8 @@
     com.googlecode.lanterna.input.Key$Kind/ArrowRight (do (move-cursor-right context) true)
     com.googlecode.lanterna.input.Key$Kind/Backspace (do (delete-before-cursor context) true)
     com.googlecode.lanterna.input.Key$Kind/Delete (do (delete-under-cursor context) true)
+    com.googlecode.lanterna.input.Key$Kind/Home (do (move-cursor-on-bof context) true)
+    com.googlecode.lanterna.input.Key$Kind/End (do (move-cursor-on-eof context) true)
     false))
 
 (defn input-loop [screen context]
