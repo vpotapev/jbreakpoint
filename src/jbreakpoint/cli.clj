@@ -21,13 +21,20 @@
         buf-len (count buf)
         cursor-pos (@context :buffer-pos)
         output-y-pos (@context :output-y-pos)]
-  (.putString screen 0 output-y-pos (string/join buf)
-    com.googlecode.lanterna.terminal.Terminal$Color/WHITE
-    com.googlecode.lanterna.terminal.Terminal$Color/BLACK #{})
-    ;ScreenCharacterStyle/Bold)
-  (.setCursorPosition screen
-    (rem cursor-pos term-width)
-    (+ (quot cursor-pos term-width) output-y-pos))))
+    ; output buffer piece by piece
+    (loop [buf-for-print buf
+           y-pos output-y-pos]
+      (def output-str (string/join (take term-width buf-for-print)))
+      (trace "buf-for-print: " buf-for-print "  y-pos: " y-pos "  output-str: " output-str)
+      (.putString screen 0 y-pos output-str
+        com.googlecode.lanterna.terminal.Terminal$Color/WHITE
+        com.googlecode.lanterna.terminal.Terminal$Color/BLACK #{})
+      (if (< term-width (count buf-for-print))
+        (recur (into [] (take-last (- (count buf-for-print) term-width) buf-for-print)) (inc y-pos))))
+    ; set cursor position
+    (.setCursorPosition screen
+      (rem cursor-pos term-width)
+      (+ (quot cursor-pos term-width) output-y-pos))))
 
 (defn history-append [context str]
   (swap! context conj {:history (conj (@context :history) str)}))
@@ -58,7 +65,12 @@
 
 (defn process-in-key [context in-key]
   (trace "process-in-key called")
-  (condp = (.getKind in-key)
+  (condp = (.getKind in-key) ; TODO: can be replaced by core.match (one switch for all cases) as part of input loop
+    com.googlecode.lanterna.input.Key$Kind/NormalKey (do
+                                                       (def ch (.getCharacter in-key))
+                                                       (buffer-insert context ch)
+                                                       (if (= ch \q)
+                                                         (swap! context conj {:exit-flag true})) false)
     com.googlecode.lanterna.input.Key$Kind/ArrowLeft (do (move-cursor-left context) true)
     com.googlecode.lanterna.input.Key$Kind/ArrowRight (do (move-cursor-right context) true)
     false))
@@ -70,19 +82,10 @@
     (when (not= in-key nil)
       (trace "in-key: " in-key)
       (def key-kind (.getKind in-key))
-      (condp = key-kind
-        com.googlecode.lanterna.input.Key$Kind/NormalKey (do (def ch (.getCharacter in-key))
-                                                           (buffer-insert context ch)
-                                                           (.clear screen)
-                                                           (print-buffer-line screen context)
-                                                           (.refresh screen)
-                                                           (if (= ch \q)
-                                                             (swap! context conj {:exit-flag true})))
-        (if (process-in-key context in-key)
-          (do
-            (.clear screen)
-            (print-buffer-line screen context)
-            (.refresh screen))))
+      (process-in-key context in-key)
+      (.clear screen)
+      (print-buffer-line screen context)
+      (.refresh screen)
       (trace "context: " @context))
     (if (.resizePending screen)
       (do
