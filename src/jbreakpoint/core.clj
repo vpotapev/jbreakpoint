@@ -7,6 +7,7 @@
 (timbre/refer-timbre)
 
 (def context (atom {
+                     :in-key-buffer [] ; buffer for incoming Key objects
                      :buffer [] ; buffer for incoming chars
                      :output-y-pos 0 ; starting output line in console (y-coord)
                      :buffer-pos 0 ; cursor pos in buffer. Can be changed by cursor keys

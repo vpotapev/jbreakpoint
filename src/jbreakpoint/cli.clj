@@ -73,6 +73,16 @@
     (swap! context conj {:buffer (into [] new-buf)})
     (move-cursor-right context)))
 
+(defn in-key-buffer-append [context in-key]
+  (trace "in-key-buffer-append called")
+  (let [buf (@context :in-key-buffer)
+        new-buf (concat buf [in-key])]
+    (swap! context conj {:in-key-buffer new-buf})))
+
+(defn in-key-buffer-clear [context]
+  (trace "in-key-buffer-clear called")
+  (swap! context conj {:in-key-buffer []}))
+
 (defn delete-before-cursor [context]
   (trace "delete-before-cursor called")
   (let [buf (@context :buffer)
@@ -96,19 +106,50 @@
 
 (defn process-in-key [context in-key]
   (trace "process-in-key called")
-  (condp = (.getKind in-key) ; TODO: can be replaced by core.match (one switch for all cases) as part of input loop
-    com.googlecode.lanterna.input.Key$Kind/NormalKey (do
-                                                       (def ch (.getCharacter in-key))
-                                                       (buffer-insert context ch)
-                                                       (if (= ch \q)
-                                                         (swap! context conj {:exit-flag true})) false)
-    com.googlecode.lanterna.input.Key$Kind/ArrowLeft (do (move-cursor-left context) true)
-    com.googlecode.lanterna.input.Key$Kind/ArrowRight (do (move-cursor-right context) true)
-    com.googlecode.lanterna.input.Key$Kind/Backspace (do (delete-before-cursor context) true)
-    com.googlecode.lanterna.input.Key$Kind/Delete (do (delete-under-cursor context) true)
-    com.googlecode.lanterna.input.Key$Kind/Home (do (move-cursor-on-bof context) true)
-    com.googlecode.lanterna.input.Key$Kind/End (do (move-cursor-on-eof context) true)
-    false))
+  (in-key-buffer-append context in-key)
+  (let [in-key-buf (@context :in-key-buffer)
+        in-key-buf-len (count in-key-buf)
+        f (first in-key-buf)
+        s (second in-key-buf)]
+    (case in-key-buf-len
+      1 (condp = (.getKind f)
+          com.googlecode.lanterna.input.Key$Kind/NormalKey (if (.equals f (Key. \O false true))
+                                                             (identity false)
+                                                             (do
+                                                               (def ch (.getCharacter f))
+                                                               (buffer-insert context ch)
+                                                               (if (= ch \q)
+                                                                 (swap! context conj {:exit-flag true}))
+                                                               (in-key-buffer-clear context) false))
+          com.googlecode.lanterna.input.Key$Kind/ArrowLeft (do
+                                                             (move-cursor-left context)
+                                                             (in-key-buffer-clear context) true)
+          com.googlecode.lanterna.input.Key$Kind/ArrowRight (do
+                                                              (move-cursor-right context)
+                                                              (in-key-buffer-clear context) true)
+          com.googlecode.lanterna.input.Key$Kind/Backspace (do
+                                                             (delete-before-cursor context)
+                                                             (in-key-buffer-clear context) true)
+          com.googlecode.lanterna.input.Key$Kind/Delete (do
+                                                          (delete-under-cursor context)
+                                                          (in-key-buffer-clear context) true)
+          com.googlecode.lanterna.input.Key$Kind/Home (do
+                                                        (move-cursor-on-bof context)
+                                                        (in-key-buffer-clear context) true)
+          com.googlecode.lanterna.input.Key$Kind/End (do
+                                                       (move-cursor-on-eof context)
+                                                       (in-key-buffer-clear context) true)
+          false)
+      2 (if (.equals f (Key. \O false true)) ; process case of six keys section on a keyboard
+          (condp = s
+            (Key. \H false false) (do
+                                    (move-cursor-on-bof context)
+                                    (in-key-buffer-clear context) true)
+            (Key. \F false false) (do
+                                    (move-cursor-on-eof context)
+                                    (in-key-buffer-clear context) true)
+            false))
+      false)))
 
 (defn input-loop [screen context]
   (trace "input-loop called")
@@ -116,7 +157,6 @@
     (def in-key (.readInput screen))
     (when (not= in-key nil)
       (trace "in-key: " in-key)
-      (def key-kind (.getKind in-key))
       (process-in-key context in-key)
       (.clear screen)
       (print-buffer-line screen context)

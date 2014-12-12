@@ -7,7 +7,8 @@
                  [expectations "2.0.9"]
                  [lein-git-deps "0.0.1-SNAPSHOT"]
                  [com.googlecode.lanterna/lanterna "2.1.8"]
-                 [com.taoensso/timbre "3.3.1"]]
+                 [com.taoensso/timbre "3.3.1"]
+                 [org.clojure/core.match "0.3.0-alpha1"]]
   :plugins [[lein-expectations "0.0.7"]]
   ;;:git-dependencies [["https://github.com/clojure/clojurescript.git"]]
   :main ^:skip-aot jbreakpoint.core
