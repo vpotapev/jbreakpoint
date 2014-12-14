@@ -1,19 +1,48 @@
 (ns jbreakpoint.cli-test
-  (:use ;;[clojure.test :refer :all]
-        [jbreakpoint.cli :as c]
-        [expectations]))
+  (:require ;;[clojure.test :refer :all]
+    [jbreakpoint.cli :as cli])
+  (:use [expectations])
+  (import (com.googlecode.lanterna.input Key)))
 
-; TODO: need to implement
+; input buffer (simulate incoming key press)
+(def buf (atom []))
 
-; test input buffer (simulate incoming key press)
+; test getting whole current buffer as string
+(expect
+  "abc123"
+  (do
+    (cli/clean-buf buf)
+    (swap! buf into (map #(Key. %) [\a \b \c \1 \2 \3]))
+    (cli/get-buf-as-string buf)))
 
-; test transformation of a keypress series to an appropriate command
+; test getting next execution command (should be ended by CRLF)
+(expect
+  "list"
+  (do
+    (cli/clean-buf buf)
+    (swap! buf into (map #(Key. %) (seq "list\ndel")))
+    (cli/get-next-cmd (cli/get-buf-as-string buf))))
 
-; test of a command execution (test handlers for each command)
+; test for removing next execution command from buffer
+(expect
+  "del\n"
+  (do
+    (cli/clean-buf buf)
+    (swap! buf into (map #(Key. %) (seq "list\ndel\n")))
+    (cli/pop-next-cmd (cli/get-buf-as-string buf))))
 
-(defn commands
+; test transformation of a keypress series to an appropriate command and command execution (test handlers for each command)
+(def commands
   {
-    :attach #() ; empty handler now. whould be filled after implementing the JDI interface
+    #"list" #(identity :cmd-list); dummy handler. Should be filled after implementing the JDI interface
+    #"list2" #(identity :cmd-list2); dummy handler
     })
+(expect
+  :cmd-list
+  (do
+    (cli/clean-buf buf)
+    (swap! buf into (map #(Key. %) (seq "list\ndel")))
+    (def nextcmd (cli/get-next-cmd (cli/get-buf-as-string buf)))
+    (apply (second (first (filter #(re-find (key %) nextcmd) commands))) [])))
 
-(expect ((complement nil?) 1))
+; TODO: test autocomplete feature - suggest for a typing command
