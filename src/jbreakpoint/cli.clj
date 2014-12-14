@@ -25,7 +25,6 @@
     (loop [buf-for-print buf
            y-pos output-y-pos]
       (def output-str (string/join (take term-width buf-for-print)))
-      (trace "buf-for-print: " buf-for-print "  y-pos: " y-pos "  output-str: " output-str)
       (.putString screen 0 y-pos output-str
         com.googlecode.lanterna.terminal.Terminal$Color/WHITE
         com.googlecode.lanterna.terminal.Terminal$Color/BLACK #{})
@@ -40,13 +39,11 @@
   (swap! context conj {:history (conj (@context :history) str)}))
 
 (defn move-cursor-left [context]
-  (trace "move-cursor-left called")
   (let [cursor-pos (@context :buffer-pos)]
     (if (> cursor-pos 0)
       (swap! context conj {:buffer-pos (dec cursor-pos)}))))
 
 (defn move-cursor-right [context]
-  (trace "move-cursor-right called")
   (let [buf (@context :buffer)
         buf-len (count buf)
         cursor-pos (@context :buffer-pos)]
@@ -54,14 +51,50 @@
       (swap! context conj {:buffer-pos (inc cursor-pos)}))))
 
 (defn move-cursor-on-bof [context]
-  (trace "move-cursor-on-bof called")
   (swap! context conj {:buffer-pos 0}))
 
 (defn move-cursor-on-eof [context]
-  (trace "move-cursor-on-eof called")
   (let [buf (@context :buffer)
         buf-len (count buf)]
     (swap! context conj {:buffer-pos buf-len})))
+
+(defn move-cursor-one-word-left [context]
+  (let [buf (into [] (@context :buffer))
+        buf-len (count buf)
+        cursor-pos (@context :buffer-pos)
+        before-part (subvec buf 0 cursor-pos)
+        strbuf (string/trimr (string/join before-part))
+        newindex (.lastIndexOf strbuf " ")]
+    (if (not= newindex -1)
+      (swap! context conj {:buffer-pos (inc newindex)})
+      (swap! context conj {:buffer-pos 0}))))
+
+(defn move-cursor-one-word-right [context]
+  (let [buf (into [] (@context :buffer))
+        buf-len (count buf)
+        cursor-pos (@context :buffer-pos)
+        strbuf (string/join buf)
+        newindex (.lastIndexOf strbuf " ")
+        started-from-space (if (not= buf-len cursor-pos)
+                             (= (buf cursor-pos) \space)
+                             false)]
+    (while (and
+             (< (@context :buffer-pos) buf-len)
+             (= (buf (@context :buffer-pos)) \space))
+      (do
+        (move-cursor-right context)))
+    (while (and
+             (not started-from-space)
+             (< (@context :buffer-pos) buf-len)
+             (not= (buf (@context :buffer-pos)) \space))
+      (do
+        (move-cursor-right context)))
+    (while (and
+             (not started-from-space)
+             (< (@context :buffer-pos) buf-len)
+             (= (buf (@context :buffer-pos)) \space))
+      (do
+        (move-cursor-right context)))))
 
 (defn buffer-insert [context ch]
   (trace "buffer-insert called")
@@ -71,20 +104,18 @@
         after-part (subvec buf cursor-pos)
         new-buf (concat before-part [ch] after-part)]
     (swap! context conj {:buffer (into [] new-buf)})
+    (trace "buffer: " (@context :buffer))
     (move-cursor-right context)))
 
 (defn in-key-buffer-append [context in-key]
-  (trace "in-key-buffer-append called")
   (let [buf (@context :in-key-buffer)
         new-buf (concat buf [in-key])]
     (swap! context conj {:in-key-buffer new-buf})))
 
 (defn in-key-buffer-clear [context]
-  (trace "in-key-buffer-clear called")
   (swap! context conj {:in-key-buffer []}))
 
 (defn delete-before-cursor [context]
-  (trace "delete-before-cursor called")
   (let [buf (@context :buffer)
         cursor-pos (@context :buffer-pos)]
     (if (and (> (count buf) 0) (> cursor-pos 0))
@@ -95,7 +126,6 @@
         (move-cursor-left context)))))
 
 (defn delete-under-cursor [context]
-  (trace "delete-under-cursor called")
   (let [buf (@context :buffer)
         cursor-pos (@context :buffer-pos)]
     (if (and (> (count buf) 0) (< cursor-pos (count buf)))
@@ -105,7 +135,6 @@
         (swap! context conj {:buffer (into [] new-buf)})))))
 
 (defn process-in-key [context in-key]
-  (trace "process-in-key called")
   (in-key-buffer-append context in-key)
   (let [in-key-buf (@context :in-key-buffer)
         in-key-buf-len (count in-key-buf)
@@ -149,24 +178,32 @@
                                     (move-cursor-on-eof context)
                                     (in-key-buffer-clear context) true)
             false))
+      6 (if (.equals f (Key. com.googlecode.lanterna.input.Key$Kind/Escape)) ; processing Escape-sequence
+          (let [key-seq (string/join (map #(.getCharacter %) (subvec (into [] in-key-buf) 1)))]
+            (condp = key-seq
+              ; Ctrl+Left
+              "[1;5D" (do
+                        (move-cursor-one-word-left context)
+                        (in-key-buffer-clear context) true)
+              ; Ctrl+Right
+              "[1;5C" (do
+                        (move-cursor-one-word-right context)
+                        (in-key-buffer-clear context) true)
+              false)))
       false)))
 
 (defn input-loop [screen context]
-  (trace "input-loop called")
   (while (not (@context :exit-flag))
     (def in-key (.readInput screen))
     (when (not= in-key nil)
-      (trace "in-key: " in-key)
       (process-in-key context in-key)
       (.clear screen)
       (print-buffer-line screen context)
-      (.refresh screen)
-      (trace "context: " @context))
+      (.refresh screen))
     (if (.resizePending screen)
       (do
         (.updateScreenSize screen)
-        (.refresh screen)))
-    ))
+        (.refresh screen)))))
 
 ; clean input buffer
 (defn clean-buf [buf]
