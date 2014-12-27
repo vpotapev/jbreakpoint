@@ -115,7 +115,7 @@
 (defn in-key-buffer-clear [context]
   (swap! context conj {:in-key-buffer []}))
 
-(defn delete-before-cursor [context]
+(defn delete-char-before-cursor [context]
   (let [buf (@context :buffer)
         cursor-pos (@context :buffer-pos)]
     (if (and (> (count buf) 0) (> cursor-pos 0))
@@ -125,7 +125,7 @@
         (swap! context conj {:buffer (into [] new-buf)})
         (move-cursor-left context)))))
 
-(defn delete-under-cursor [context]
+(defn delete-char-under-cursor [context]
   (let [buf (@context :buffer)
         cursor-pos (@context :buffer-pos)]
     (if (and (> (count buf) 0) (< cursor-pos (count buf)))
@@ -134,40 +134,65 @@
             new-buf (concat before-part after-part)]
         (swap! context conj {:buffer (into [] new-buf)})))))
 
+(defn delete-one-word-left [context]
+  (trace "delete-one-word-left")
+  (while (and (> (@context :buffer-pos) 0) (= ((@context :buffer) (- (@context :buffer-pos) 1)) \space))
+    (do
+      (delete-char-before-cursor context)))
+  (while (and (> (@context :buffer-pos) 0) (not= ((@context :buffer) (- (@context :buffer-pos) 1)) \space))
+    (do
+      (delete-char-before-cursor context)))); TODO: should be checked on PC
+
+(defn delete-one-word-right [context]
+  (trace "delete-one-word-right")
+  (while (and (< (@context :buffer-pos) (count (@context :buffer))) (= ((@context :buffer) (@context :buffer-pos)) \space))
+    (do
+      (delete-char-under-cursor context)))
+  (while (and (< (@context :buffer-pos) (count (@context :buffer))) (not= ((@context :buffer) (@context :buffer-pos)) \space))
+    (do
+      (delete-char-under-cursor context)))); TODO: should be checked on PC
+
 (defn process-in-key [context in-key]
   (in-key-buffer-append context in-key)
   (let [in-key-buf (@context :in-key-buffer)
         in-key-buf-len (count in-key-buf)
         f (first in-key-buf)
         s (second in-key-buf)]
+    (trace "context: " @context "    f: " f " " [(.getKind f) (.isAltPressed f) (.isCtrlPressed f)])
     (case in-key-buf-len
-      1 (condp = (.getKind f)
-          com.googlecode.lanterna.input.Key$Kind/NormalKey (if (.equals f (Key. \O false true))
-                                                             (identity false)
-                                                             (do
-                                                               (def ch (.getCharacter f))
-                                                               (buffer-insert context ch)
-                                                               (if (= ch \q)
-                                                                 (swap! context conj {:exit-flag true}))
-                                                               (in-key-buffer-clear context) false))
-          com.googlecode.lanterna.input.Key$Kind/ArrowLeft (do
-                                                             (move-cursor-left context)
-                                                             (in-key-buffer-clear context) true)
-          com.googlecode.lanterna.input.Key$Kind/ArrowRight (do
-                                                              (move-cursor-right context)
-                                                              (in-key-buffer-clear context) true)
-          com.googlecode.lanterna.input.Key$Kind/Backspace (do
-                                                             (delete-before-cursor context)
-                                                             (in-key-buffer-clear context) true)
-          com.googlecode.lanterna.input.Key$Kind/Delete (do
-                                                          (delete-under-cursor context)
-                                                          (in-key-buffer-clear context) true)
-          com.googlecode.lanterna.input.Key$Kind/Home (do
-                                                        (move-cursor-on-bof context)
-                                                        (in-key-buffer-clear context) true)
-          com.googlecode.lanterna.input.Key$Kind/End (do
-                                                       (move-cursor-on-eof context)
-                                                       (in-key-buffer-clear context) true)
+      1 (condp = [(.getKind f) (.isAltPressed f) (.isCtrlPressed f)]
+          [com.googlecode.lanterna.input.Key$Kind/NormalKey false false] (if (.equals f (Key. \O false true))
+                                                                           (identity false)
+                                                                           (do
+                                                                             (def ch (.getCharacter f))
+                                                                             (buffer-insert context ch)
+                                                                             (if (= ch \q)
+                                                                               (swap! context conj {:exit-flag true}))
+                                                                             (in-key-buffer-clear context) false))
+          [com.googlecode.lanterna.input.Key$Kind/ArrowLeft false false] (do
+                                                                           (move-cursor-left context)
+                                                                           (in-key-buffer-clear context) true)
+          [com.googlecode.lanterna.input.Key$Kind/ArrowRight false false] (do
+                                                                            (move-cursor-right context)
+                                                                            (in-key-buffer-clear context) true)
+          [com.googlecode.lanterna.input.Key$Kind/Backspace false false] (do
+                                                                           (delete-char-before-cursor context)
+                                                                           (in-key-buffer-clear context) true)
+          [com.googlecode.lanterna.input.Key$Kind/Delete false false] (do
+                                                                        (delete-char-under-cursor context)
+                                                                        (in-key-buffer-clear context) true)
+          [com.googlecode.lanterna.input.Key$Kind/Backspace false true] (do ; // TODO: should work only on PC
+                                                                          (delete-one-word-left context)
+                                                                          (in-key-buffer-clear context) true)
+          [com.googlecode.lanterna.input.Key$Kind/Delete false true] (do ; // TODO: should work only on PC, и нужно ли это вообще?
+                                                                       (delete-one-word-right context)
+                                                                       (in-key-buffer-clear context) true)
+          [com.googlecode.lanterna.input.Key$Kind/Home false false] (do
+                                                                      (move-cursor-on-bof context)
+                                                                      (in-key-buffer-clear context) true)
+          [com.googlecode.lanterna.input.Key$Kind/End false false] (do
+                                                                     (move-cursor-on-eof context)
+                                                                     (in-key-buffer-clear context) true)
           false)
       2 (if (.equals f (Key. \O false true)) ; process case of six keys section on a keyboard
           (condp = s
@@ -177,7 +202,14 @@
             (Key. \F false false) (do
                                     (move-cursor-on-eof context)
                                     (in-key-buffer-clear context) true)
-            false))
+            false)
+          (if (.equals f (Key. com.googlecode.lanterna.input.Key$Kind/Escape)) ; processing Escape-sequence
+            (condp = s
+              ; Delete one word (only for Mac: Escape+Backspace)
+              (Key. com.googlecode.lanterna.input.Key$Kind/Backspace) (do ; TODO: should be checked
+                                                                        (delete-one-word-left context)
+                                                                        (in-key-buffer-clear context) true)
+              false)))
       6 (if (.equals f (Key. com.googlecode.lanterna.input.Key$Kind/Escape)) ; processing Escape-sequence
           (let [key-seq (string/join (map #(.getCharacter %) (subvec (into [] in-key-buf) 1)))]
             (condp = key-seq
