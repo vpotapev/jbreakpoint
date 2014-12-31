@@ -209,6 +209,8 @@
               (Key. com.googlecode.lanterna.input.Key$Kind/Backspace) (do ; TODO: should be checked
                                                                         (delete-one-word-left context)
                                                                         (in-key-buffer-clear context) true)
+              (Key. com.googlecode.lanterna.input.Key$Kind/Escape) (do ; reset buffer
+                                                                     (in-key-buffer-clear context) true)
               false)))
       6 (if (.equals f (Key. com.googlecode.lanterna.input.Key$Kind/Escape)) ; processing Escape-sequence
           (let [key-seq (string/join (map #(.getCharacter %) (subvec (into [] in-key-buf) 1)))]
