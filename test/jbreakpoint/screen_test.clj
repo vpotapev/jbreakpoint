@@ -50,10 +50,29 @@
    :width {:parent :width}
    :height {:parent :height}
    }
-  (s/get-wnd-layout testlayout :wnd-console-inner))
+  (s/get-wnd testlayout :wnd-console-inner))
 (expect
   (first testlayout)
-  (s/get-wnd-layout testlayout :main-screen-wnd))
+  (s/get-wnd testlayout :main-screen-wnd))
 (expect
   nil
-  (s/get-wnd-layout testlayout :fake-window))
+  (s/get-wnd testlayout :fake-window))
+
+; delete window
+(expect
+  '(
+     {:id :main-screen-wnd
+      :left 0
+      :top 0
+      :width {:parent :width}
+      :height {:parent :height}
+      :children (
+                  {:id :wnd-console
+                   :left 0
+                   :top 0
+                   :width {:parent :width}
+                   :height {:parent :height}
+                   :children ()
+                   })
+      })
+  (s/delete-wnd testlayout :wnd-console-inner))
